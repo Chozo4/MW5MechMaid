@@ -1,0 +1,523 @@
+#SingleInstance Ignore
+#NoEnv
+
+SetTitleMatchMode 2
+SetWorkingDir %A_ScriptDir%
+
+;-------------------------------------
+;TODO:
+; RELEASE TO PUBLIC
+;-------------------------------------
+
+$ExtractDir := A_Temp "\Tmp$00192\"
+FileCreateDir, % $ExtractDir
+if (!A_IsCompiled)
+{
+  FileCopy, RobotoMono-Regular.TTF, % $ExtractDir "RobotoMono-Regular.TTF"
+  FileCopy, TT_Equipment.cfg, % $ExtractDir "TT_Equipment.cfg"
+  FileCopy, TT_Chassis.cfg, % $ExtractDir "TT_Chassis.cfg"
+  FileCopy, Icon.ico, % $ExtractDir "Icon.ico"
+  FileCopy, about.jpg, % $ExtractDir "about.jpg"
+}
+else
+{
+  FileInstall, RobotoMono-Regular.TTF, % $ExtractDir "RobotoMono-Regular.TTF", 1
+  FileInstall, TT_Equipment.cfg, % $ExtractDir "TT_Equipment.cfg", 1
+  FileInstall, TT_Chassis.cfg, % $ExtractDir "TT_Chassis.cfg", 1
+  FileInstall, Icon.ico, % $ExtractDir "icon.ico", 1
+  FileInstall, about.jpg, %  $ExtractDir  "about.jpg", 1
+}
+ 
+Menu, Tray, Icon, % $ExtractDir "icon.ico" 
+DllCall( "GDI32.DLL\AddFontResourceEx", Str,$ExtractDir "RobotoMono-Regular.TTF",UInt,(FR_PRIVATE:=0x10), Int,0)
+
+;Initialize Loadout File Path
+IniRead, $LoadoutPath, .\Config.ini, Options, Path , % A_AppData "\..\Local\MW5Mercs\Saved\SavedLoadouts\InstantAction.json"
+IniRead, $WhoAmI, .\Config.ini, Options, WhoAmI, *
+
+Intro:
+If ($Init || (strlen($WhoAmI)<2))
+{
+  Gui, Main:Hide ;If we are changing callsign later
+  Gui, Intro:New, +HwndWinID -AlwaysOnTop -Resize +Caption +SysMenu +Border
+  Gui, -0x30000 
+  Gui, Intro:Margin, 10,10
+  Gui, Intro:Color, C4CBCC, 000000
+  Gui, Intro:Font, S12, Terminal
+  Gui, Intro:Add, Text,Center W180 x+5 y+20 +border, Welcome to `nMechlab Maid!
+  Gui, Intro:Font, S10, Verdana
+  Gui, Intro:Color,, FFFFFF
+  Gui, Intro:Add, Text,center W170 xp xp y+10, For export tagging:`nWhat's your Callsign?
+  Gui, Intro:Font,, Terminal
+  Gui, Intro:Add, Edit, center w170 x20 y+10 vFirstRun -multi Limit16, % (strlen($WhoAmI)<2)?"MW5Mercs":$WhoAmI
+  Gui, Intro:Font,c0x000000 s6, Verdana
+  Gui, Intro:Add, Text,center W170 xp xp y+0, Allowed only Letter, Numbers, Underscore(_), and Dashes(-) allowed
+  Gui, Intro:Font, s10
+  Gui, Intro:Add, Button, xp+50 y+5 gFirstRun -hidden +default, Continue
+  Gui, Intro:Show, AutoSize, You look new here...
+  return
+
+}
+
+About:
+if(!$Init)
+{
+  Gui, About:New, +HwndWinID +AlwaysOnTop -Resize  +Caption +SysMenu +Border
+  Gui, -0x30000 
+  Gui, About:Font, bold
+  Gui, About:Margin, 20,20
+  Gui, About:Color, C4CBCC, 000000
+  Gui, About:Add, Text,Left x+95 y20 -border, MW5Mercs Mechlab Maid (32-bit) v1.0`n
+  Gui, About:Font, normal
+  Gui, About:Add, Text,Left xp y+1  -border, Written by: NasumiRayne / Chozo4 `n`nGitHub Page:
+  Gui, About:Add, Link,xp y+1,<a href="https://github.com/Chozo4">https://github.com/Chozo4</a>
+  Gui, About:Add, Text,Left xp y+1  -border, `nContact me on discord:
+  Gui, About:Add, Link,xp y+1,<a href="https://discordapp.com/users/280854706073501696">NasumiRayne#1510</a>
+  Gui, About:Add, Text,Left xp y+1  -border, `nFind me on Twitch:
+  Gui, About:Add, Link,xp y+1,<a href="https://twitch.tv/Chozo4">https://twitch.tv/Chozo4</a>
+  Gui, About:Add, Text,Center W80 H80 X20 Y35 +border, SENPAI`nNOTICED`nME!
+  Gui, About:Add, Picture , wp yp xp hp, % $ExtractDir "about.jpg"
+  Gui, About:Add, Button, xp y+30 H30 wp gAboutClose -hidden +default, OK
+}
+
+Main:
+Gui, Main:New, +HwndWinID -AlwaysOnTop -Resize +Caption -ToolWindow +Border +OwnDialogs
+Gui, Main:Margin, 0,0
+Gui, Main:Color, C4CBCC, F0F0F0
+Gui, Main:Font,, Verdana
+Gui, Main:Add, Button,x10 y10 gImportFunc,Import Variant
+Gui, Main:Add, Button,x+10 yp gExportFunc,Export Variant
+Gui, Main:Add, Button,x+10 yp gDeleteFunc,Delete Variant
+Gui, Main:Add, Edit, x+10 yp r1 vLOPath w380 -VScroll -HScroll +Border +ReadOnly, % $LoadoutPath
+Gui, Main:Add, Button, x+10 yp gLOPath, ...
+Gui, Main:Add, listview,c101010 Checked Count100 -Multi AltSubmit grid w350 h500 x0 y40 vLoadoutList gUpdateReadout, #|Base|Variant Name
+gui, Main:font, c0x000000 s9, Roboto Mono Regular
+Gui, Main:Add, Edit, w400 hp+0 x+0 yp -Wrap +ReadOnly vReadout
+Gui, Main:Add, StatusBar,center,
+
+SB_SetParts(690-(strlen($WhoAmI)*8))
+SB_SetText("ID: [" $WhoAmI "]", 2)
+
+;EditBox
+Gui, EditBox:New, +HwndWinID2 +AlwaysOnTop -SysMenu -Resize +Caption +ToolWindow +Border, Edit Variant Name
+Gui, EditBox:Margin, 0,0
+Gui, EditBox:Add, Edit, r0 vVarEdit w135, HALP ME!!!!!
+Gui, EditBox:Add, Button, h0 w0 x0 y0 gEditSubmit +hidden +default
+
+Gui, Main:Default
+
+Menu, OpenMenu, Add, Exported Loadouts, ExportFolder
+Menu, OpenMenu, Add, Saved IALoadouts, SavedFolder
+Menu, Menu, Add, &Folder, :OpenMenu
+
+Menu, DebugMenu, Add, Change ID, Intro
+Menu, DebugMenu, Add, Export All, ExportFuncAll
+Menu, DebugMenu, Add, Reload List, LoadoutList
+Menu, DebugMenu, Add, Save Changes, SaveFunc
+Menu, Menu, Add, &Options, :DebugMenu
+
+Menu, Menu, Add, &About, AboutBox
+Gui, Menu, Menu
+
+FileCreateDir, .\Loadouts
+;ColorLV := New LV_Colors(HLV, 1)
+gosub, LoadoutList
+Gui, Main:Show, Autosize w1000, MW5Mercs Mechlab Maid
+
+;Get client rect offsets for control positioning with mouse pointer.
+WinGetPos,,, Win_W, Win_H, % "ahk_id" WinID
+DllCall("user32\GetClientRect", Ptr,WinId, Ptr,&RECT)
+$OffsetY := Win_h - NumGet(&RECT, 12, "Int")
+$OffsetX := Win_w - NumGet(&RECT, 8, "Int")
+;msgbox  % "X_off: " $OffSetX " Y_off: " $OffsetY
+$Init := 1
+return
+
+AboutClose:
+ Gui, About:hide
+return
+AboutBox:
+Gui, Main:Default
+Gui, About:Show, Autosize, About
+
+return
+FirstRun:
+  critical
+  GuiControlGet, FirstRun
+  
+
+  $WhoAmI := SubStr(RegExReplace(FirstRun,"(*UCP)[^\w- ]+",""),1,16)
+  if (strlen($WhoAmI) < 2)
+  {
+    msgbox, Callsign too short (Less than 2) or contains invalid characters.
+    return
+  }
+  GuiControl,Intro:,FirstRun, % $WhoAmI 
+  msgbox,36,WhoAmI?, % "Callsign will be """ $WhoAmI """. Accept?"
+
+  IfMsgBox Yes
+  {
+    IniWrite, % $WhoAmI, .\Config.ini, Options, WhoAmI
+    Gui, Intro:Submit
+    if ($init)
+    {
+      Gui, Main:Default
+      SB_SetParts(690-(strlen($WhoAmI)*8))
+      SB_SetText("ID: [" $WhoAmI "]", 2)
+      Gui, Main:Show
+    }
+    else
+      gosub, Main
+    return
+  }
+return
+
+LOPath:
+$OldPath := $LoadoutPath
+FileSelectFile, $LoadoutPath, 3, % A_AppData "\..\Local\MW5Mercs\Saved\SavedLoadouts\InstantAction.json" , Open a loadout database
+
+if (!$LoadoutPath) ;user cancelled dialog
+  $LoadoutPath := $OldPath
+
+$isValid := inStr(($F := FileOpen($LoadoutPath, "r")).Read(16), "Loadouts"),$F.Close()
+
+LOPathValidate:
+if ($isValid)
+  IniWrite, % $LoadoutPath, .\Config.ini, Options, Path
+else
+{
+    msgbox, Loadout Path Invalid - please check location and try again.
+    gosub, LOPath
+}
+GuiControl,Main:,LOPath, % $LoadoutPath
+
+gosub, LoadoutList
+return
+
+EditSubmit:
+  critical
+
+  GuiControlGet, VarEdit
+  Gui, EditBox:Submit 
+  Gui, Main:Default
+  
+  LV_GetText($TargetRow, $RowEdit)
+  if (!$RowEdit || !$TargetRow || ($Row[$TargetRow][2] = VarEdit)) ;return to sanity 
+    return
+
+  $Row[$TargetRow][2] := RegExReplace(VarEdit,"(*UCP)[^\w- ]+","")
+  LV_Modify($RowEdit,"", $TargetRow,$Row[$TargetRow][1], $Row[$TargetRow][2])
+  $Row[$TargetRow][0] := RegExReplace($Row[$TargetRow][0],"i)""customName"": "".*?""", """customName"": """ $Row[$TargetRow][2] """",,1)
+  
+  PopulateDetails($Row[$TargetRow])
+
+  $RowEdit := 0
+  $ModCount++
+Return
+
+IntroGuiClose:
+if ($init)
+{
+  GoSub, Main
+  return
+}
+
+MainGuiClose:
+if !$ModCount
+{
+  DllCall( "GDI32.DLL\RemoveFontResourceEx",Str,$ExtractDir "RobotoMono-Regular.TTF",UInt,(FR_PRIVATE:=0x10),Int,0)
+  FileRemoveDir, % $ExtractDir, 1
+  ExitApp
+}
+
+
+MsgBox, 3,, There have been changes to the loadout database`r`rSave them now?
+IfMsgBox Yes
+  gosub, SaveFunc
+else IfMsgBox Cancel
+  return
+  
+DllCall( "GDI32.DLL\RemoveFontResourceEx",Str,$ExtractDir "RobotoMono-Regular.TTF",UInt,(FR_PRIVATE:=0x10),Int,0)
+  FileRemoveDir, % $ExtractDir, 1
+ExitApp
+return
+
+ExportFolder:
+Run, % "Explorer.exe .\Loadouts"
+return
+
+SavedFolder:
+; To fetch only its directory:
+SplitPath, $LoadoutPath,, $dir
+Run, % "Explorer.exe """ $dir """"
+return
+
+ConsultTranslationTable($Find)  ;For comparing component against translation table of known item IDs
+{
+  Global $ExtractDir
+  Static $Trans := []
+  
+  if !NumGet(&$Trans + 4*A_PtrSize)
+    Loop, read, % $ExtractDir "TT_Equipment.cfg"
+      if inStr(A_LoopReadLine,":")
+        $Out := StrSplit(A_LoopReadLine,":"), $Trans[$Out[1]] := $Out[2]
+
+  if substr($Find,1,3) = "std" ;screw adding every engine to the translation table
+    return substr($Find,4)
+    
+  return $Trans[$Find]?$Trans[$Find]:$Find
+}
+
+GetComponentBySlot($Data,$Slot,$Fallback="")  ;extend to check for multiples, including location, and return array
+{
+  RegExMatch($Data,"is):" $Slot """.*?Asset:(.*?)""",$out)
+  return $out1?ConsultTranslationTable($out1):$Fallback
+}
+
+StrPad($S,$ToLen,$PadWith=" ",$PadRight=0)
+{
+  while (StrLen($S) < $ToLen)
+    $PadRight?($S .= $PadWith):($S := $PadWith $S)
+    
+  return $PadRight?substr($S,1,$ToLen):substr($S,1-$ToLen)
+}
+
+PopulateDetails($Selected)
+{
+  critical
+  $Armor := {"Total":0}, $text := ""
+  RegExReplace($Selected[0], "iS)MWJumpJetDataAsset","", $COMP_JumpJets)
+  $ExportFrom := RegExMatch($Selected[0],"iOS)""exportFrom"": ""(.*?)""",$EF)?$EF[1]:"MW5Mercs"
+
+  
+    RegExMatch($Selected[0], "isO)""installedArmor"":.*?("".*?)}", $Tmp)
+  Loop, parse, % StrReplace(StrReplace($Tmp[1],""""),A_Tab),`, , `n`r
+    $Out := StrSplit(A_LoopField,": "), $Armor[$Out[1]] := StrPad($Out[2],3,"0"), $Armor["Total"] += $Out[2]
+    
+  RegExMatch($Selected[0], "isO)""installedRearArmor"":.*?("".*?)}", $Tmp)
+  Loop, parse, % StrReplace(StrReplace(StrReplace($Tmp[1],"Rear"),""""),A_Tab),`, , `n`r
+    $Out := StrSplit(A_LoopField,": "), $Armor[$Out[1]] .= "/" StrPad($Out[2],3,"0"), $Armor["Total"] += $Out[2]
+  
+  ;53char wide
+  $text.= "Chassis: " $Selected[1] "`nVariant: " $Selected[2] "`n Source: " $ExportFrom "`n"
+ 
+  $text.= strpad("`n Internal: " GetComponentBySlot($Selected[0],"Structureslot","Standard"),41,,1)                                                         "Armor Split"
+  $text.= Strpad("`n   Engine: " GetComponentBySlot($Selected[0],"Engine","NONE") " " GetComponentBySlot($Selected[0],"EngineTypeSlot","Standard"),40,,1)  strpad("",15,chr(9472))
+  $text.= Strpad("`n JumpJets: " ($COMP_JumpJets?$COMP_JumpJets " (" ($COMP_JumpJets*30) "M Capacity)":"None"),41,,1) " H: " $Armor.Head
+  $text.= Strpad("`nHeatsinks: " GetComponentBySlot($Selected[0],"enginecooling","Single"),41,,1) "CT: " $Armor.CenterTorso
+  $text.= Strpad("`nArmorType: " GetComponentBySlot($Selected[0],"ArmorSlot","Standard"),41,,1) "LT: " $Armor.LeftTorso
+  $text.= Strpad("`n " chr(10551) "Install: " $Armor["Total"] " points",41,,1) "RT: " $Armor.RightTorso
+  $text.= Strpad("`n     Gyro: " GetComponentBySlot($Selected[0],"Gyro","Standard"),41,,1) "LA: " $Armor.LeftArm
+  $text.= Strpad("`n  Cockpit: " GetComponentBySlot($Selected[0],"Cockpit","Standard"),41,,1) "RA: " $Armor.RightArm
+  $text.= Strpad("`nTargeting: " GetComponentBySlot($Selected[0],"Targeting","Standard"),41,,1) "LL: " $Armor.LeftLeg
+  $text.= Strpad("`n  Sensors: " GetComponentBySlot($Selected[0],"Sensors","Standard"),41,,1) "RL: " $Armor.RightLeg
+  
+  ;$text .= "`n`nArmor Distribution`n-----------------------------------------`n"
+  ;$text .= " H: " $Armor.Head "     CT: " $Armor.CenterTorso "  LA: " $Armor.LeftArm "  RA: " $Armor.RightArm "`n"
+  ;$text .= "LT: " $Armor.LeftTorso " RT: " $Armor.RightTorso "  LL: " $Armor.LeftLeg "  RL: " $Armor.RightLeg "`n"
+  
+  $text .= "`n`n Ordnance`n" strpad("",34,chr(9472),1)
+  $LastPos := 0,  $Tmp := {0:0}, $Armaments := {} ;Get Weapons List
+  While ($LastPos := RegExMatch($Selected[0], "isO)WeaponDataAsset:(.*?)""", $Tmp, $LastPos += StrLen($Tmp[0])))
+    $Armaments[$Tmp[1]] := $Armaments[$Tmp[1]]?$Armaments[$Tmp[1]]+1:1
+  For $k, $v in $Armaments
+      $text .= !InStr($k, "YAML_")?("`n" $v "x " ConsultTranslationTable(RegExReplace($k,"i)_lvl[0-9]",""))):""
+ 
+   $text .= "`n`n Munitions`n" strpad("",34,chr(9472),1)
+  $LastPos := 0,  $Tmp := {0:0}, $Ammunition := {}
+  While ($LastPos := RegExMatch($Selected[0], "isO)MWAmmoDataAsset:(.*?)""", $Tmp, $LastPos += StrLen($Tmp[0])))
+    $Ammunition[$Tmp[1]] := $Ammunition[$Tmp[1]]?$Ammunition[$Tmp[1]]+1:1
+  For $k, $v in $Ammunition
+      $text .= !InStr($k, "YAML_")?("`n" $v "x " ConsultTranslationTable($k)):""
+
+    
+ 
+  
+  GuiControl,,Readout, % $text
+}
+
+SaveFunc:
+  tooltip, Saving Changes...
+  ($F := FileOpen($LoadoutPath,"w")).write("{`r`n""Loadouts"": [")
+   
+  for $k, $v in $Row
+    $F.write((A_Index>1?",":"") "`r`n{`r`n""mechLoadout"":`r`n" $v[0] "`r`n}")
+  $F.write("]`r`n}"), $F.close()
+  tooltip
+  $ModCount := 0
+
+return
+
+ExportFuncAll:
+  for $k, $v in $Row
+  {
+    $path := strreplace(".\Loadouts\" $v[1] " " $v[2] "_Loadout.json"," ","_")
+      if ($v[0])
+      {
+        if (!InStr($v[0],"""exportFrom"""))
+          $v[0] := RegExReplace($v[0],"i)""customName"":", """exportFrom"": """ $WhoAmI """`,`r`n`t`t`t`t""customName"":",,1)
+        ($F := FileOpen($path,"w")).write($v[0]), $F.close()
+      }
+  }
+
+  msgbox % "Exported " NumGet(&$Row + 4*A_PtrSize) " Variants to file in .\Loadouts"
+return
+
+ExportFunc:
+  $Count := 0
+  While ($T := LV_GetNext(0, "C"))
+  {
+    if(LV_Modify($T, "-Check"))
+    {
+      LV_GetText($RowNum, $T), $Count++
+      
+      $path := strreplace(".\Loadouts\" $Row[$RowNum][1] " " $Row[$RowNum][2] "_Loadout.json"," ","_")
+      if ($Row[$RowNum][0])
+      {
+        if (!InStr($Row[$RowNum][0],"""exportFrom"""))
+          $Tmp := RegExReplace($Row[$RowNum][0],"i)""customName"":", """exportFrom"": """ $WhoAmI """`,`r`n`t`t`t`t""customName"":",,1)
+        else $Tmp := $Row[$RowNum][0]
+        ($F := FileOpen($path,"w")).write($Tmp), $F.close()
+      }
+    }
+  }
+  msgbox % "Exported " $Count " Variants to file in .\Loadouts"
+return
+
+
+ImportFunc:
+FileSelectFile, $ImportPath, 3, .\ , Open a loadout database
+$isValid := inStr(($F := FileOpen($ImportPath, "r")).Read(32), "mechDataAssetId"),$F.Close()
+
+if (!$ImportPath)
+  return
+  
+if (!$isValid)
+{
+    msgbox, Loadout Path Invalid - please check location and try again.
+    return
+}
+
+  FileRead, $Import, % $ImportPath
+  $LastPos := 1, $LO := {0:0}
+  While ($LastPos := RegExMatch($Import, "isO)(""mechDataAssetId"".*?MWMechDataAsset:)(.*?)"".*?customName"": ""(.*?)"".*?("".*?InstalledTraits.*?])", $LO, $LastPos += StrLen($LO[0])))
+  {
+    for $k, $v in $Row
+    {
+      if (($LO[3] = $v[2]) && ($v[1] = RegExReplace(StrReplace($LO[2], "_MDA", ""), "(_.*)", "")) )
+      {
+        msgbox,16,Unable to Import, % "Variant already exists!`n`nChassis: " $v[1] "`nVariant: " $v[2]
+        return
+      }
+    }
+    $InRow := $Row.push( {0:"{`r`n " $LO[0] "`r`n}", 1:RegExReplace(StrReplace($LO[2], "_MDA", ""), "(_.*)", ""), 2:$LO[3]})
+    ;$VName := $LO[3], $CName := RegExReplace(StrReplace($LO[2], "_MDA", "")
+    lv_add(,$InRow,$Row[$InRow][1],$Row[$InRow][2])
+    
+    
+    
+    ;msgbox,64,Import Success!, % "Variant sucessfully imported`n`nChassis: " RegExReplace(StrReplace($LO[2], "_MDA", ""), "(_.*)", "") "`nVariant: " $LO[3]
+  }
+    
+
+ LV_ModifyCol()
+ LV_ModifyCol(1,"20")
+ LV_ModifyCol(2,"Sort")
+ LV_ModifyCol(3,"AutoHDR")
+ 
+ loop % NumGet(&$Row + 4*A_PtrSize)
+ {
+   LV_GetText($Tst, A_Index)
+   if ($Tst == $InRow)
+     LV_Modify(A_Index, "+Select"), break
+ }
+ GuiControl, +Redraw, LoadoutList
+
+ $ModCount++
+return
+
+DeleteFunc:
+  $Count := 0
+  While ($T := LV_GetNext(0, "C"))
+    LV_GetText($RowNum, $T), LV_Delete($T), $Row.Delete($RowNum), $ModCount++, $Count++
+    
+  SB_SetText(NumGet(&$Row + 4*A_PtrSize) . " variants loaded and ready for manipulation.", 1)
+  msgbox % "Deleted " $Count " Variants from Global List"
+return
+
+UpdateReadout:
+If (A_GuiEvent = "DoubleClick" && A_EventInfo)
+{
+  coordmode, mouse, screen
+  mousegetpos, x, y,,,1
+  
+  LV_GetText($Tst, $RowEdit := A_EventInfo)
+  GuiControl,EditBox:,VarEdit, % $Row[$Tst][2]
+  Gui, EditBox:Show, x%x% y%y%
+
+  return
+}
+else If (A_GuiEvent = "I" && ($SelRow := A_EventInfo?A_EventInfo:LV_GetNext(0)) && ($LastRow != $SelRow))
+{
+  LV_GetText(Tst, $LastRow := $SelRow), PopulateDetails($Row[Tst])
+  Gui, EditBox:Hide
+}
+return
+
+LoadoutList:
+
+  $isValid := inStr(($F := FileOpen($LoadoutPath, "r")).Read(16), "Loadouts"),$F.Close()
+  if (!$isValid)
+  {
+    gosub, LOPathValidate
+    return
+  }
+  
+  if (!FileExist($LoadoutPath ".bak"))   ;keep firstrun backup
+    FileCopy, % $LoadoutPath, % $LoadoutPath ".bak"
+    
+  tooltip, Compiling List...
+  $ModCount := 0
+  
+  FileRead, Loadouts, % $LoadoutPath
+  $LastPos := 1, $LO := {0:0},  $Row := {}
+  While ($LastPos := RegExMatch(Loadouts, "isO)(""mechDataAssetId"".*?MWMechDataAsset:)(.*?)"".*?customName"": ""(.*?)"".*?("".*?InstalledTraits.*?])", $LO, $LastPos += StrLen($LO[0])))  
+    $Row[A_Index] := {0:"{`r`n " $LO[0] "`r`n}", 1:RegExReplace(StrReplace($LO[2], "_MDA", ""), "(_.*)", ""), 2:$LO[3]}
+    
+  SB_SetText(NumGet(&$Row + 4*A_PtrSize) . " variants loaded and ready for manipulation.", 1)
+ 
+
+ GuiControl, -Redraw, LoadoutList
+ tooltip Populating...
+ LV_Delete()
+ for $k, $v in $Row
+   lv_add(,$k,$v[1],$v[2])
+
+ LV_ModifyCol()
+ LV_ModifyCol(1,"20")
+ ;LV_ModifyCol(1,"60")
+ LV_ModifyCol(2,"Sort")
+ LV_ModifyCol(3,"AutoHDR")
+ GuiControl, +Redraw, LoadoutList
+
+ Tooltip
+return
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
