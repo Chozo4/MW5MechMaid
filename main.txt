@@ -285,9 +285,11 @@ StrPad($S,$ToLen,$PadWith=" ",$PadRight=0)
 PopulateDetails($Selected)
 {
   critical
+  
+  global $WhoAmI
   $Armor := {"Total":0}, $text := ""
   RegExReplace($Selected[0], "iS)MWJumpJetDataAsset","", $COMP_JumpJets)
-  $ExportFrom := RegExMatch($Selected[0],"iOS)""exportFrom"": ""(.*?)""",$EF)?$EF[1]:"MW5Mercs"
+  $ExportFrom := RegExMatch($Selected[0],"iOS)""exportFrom"": ""(.*?)""",$EF)?$EF[1]:$WhoAmI
 
   
     RegExMatch($Selected[0], "isO)""installedArmor"":.*?("".*?)}", $Tmp)
