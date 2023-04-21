@@ -1,45 +1,39 @@
 #SingleInstance Ignore
 #NoEnv
-
+DetectHiddenWindows, on
 SetTitleMatchMode 2
 SetWorkingDir %A_ScriptDir%
 
-;-------------------------------------
-;TODO:
-; RELEASE TO PUBLIC
-;-------------------------------------
+;OnExit(MainGuiClose, -1)
+OnExit, MainGuiClose
+
+
+;Initialize Configuration
+IniRead, $LoadoutPath, .\Config.ini, Options, Path , % A_AppData "\..\Local\MW5Mercs\Saved\SavedLoadouts\InstantAction.json"
+IniRead, $WhoAmI, .\Config.ini, Options, WhoAmI, *
+IniRead, $Locale, .\Config.ini, Options, Locale, EN
 
 $ExtractDir := A_Temp "\Tmp$00192\"
 FileCreateDir, % $ExtractDir
 if (!A_IsCompiled)
 {
-  FileCopy, RobotoMono-Regular.TTF, % $ExtractDir "RobotoMono-Regular.TTF"
-  FileCopy, TT_Equipment.cfg, % $ExtractDir "TT_Equipment.cfg"
-  FileCopy, TT_Chassis.cfg, % $ExtractDir "TT_Chassis.cfg"
   FileCopy, Icon.ico, % $ExtractDir "Icon.ico"
   FileCopy, about.jpg, % $ExtractDir "about.jpg"
 }
 else
 {
-  FileInstall, RobotoMono-Regular.TTF, % $ExtractDir "RobotoMono-Regular.TTF", 1
-  FileInstall, TT_Equipment.cfg, % $ExtractDir "TT_Equipment.cfg", 1
-  FileInstall, TT_Chassis.cfg, % $ExtractDir "TT_Chassis.cfg", 1
-  FileInstall, Icon.ico, % $ExtractDir "icon.ico", 1
-  FileInstall, about.jpg, %  $ExtractDir  "about.jpg", 1
+  FileInstall, Icon.ico, % $ExtractDir "icon.ico"
+  FileInstall, about.jpg, %  $ExtractDir  "about.jpg"
 }
  
 Menu, Tray, Icon, % $ExtractDir "icon.ico" 
-DllCall( "GDI32.DLL\AddFontResourceEx", Str,$ExtractDir "RobotoMono-Regular.TTF",UInt,(FR_PRIVATE:=0x10), Int,0)
-
-;Initialize Loadout File Path
-IniRead, $LoadoutPath, .\Config.ini, Options, Path , % A_AppData "\..\Local\MW5Mercs\Saved\SavedLoadouts\InstantAction.json"
-IniRead, $WhoAmI, .\Config.ini, Options, WhoAmI, *
+DllCall( "GDI32.DLL\AddFontResourceEx", Str,"Localization\" $Locale "\Font.TTF",UInt,(FR_PRIVATE:=0x10), Int,0)
 
 Intro:
 If ($Init || (strlen($WhoAmI)<2))
 {
   Gui, Main:Hide ;If we are changing callsign later
-  Gui, Intro:New, +HwndWinID -AlwaysOnTop -Resize +Caption +SysMenu +Border
+  Gui, Intro:New, -AlwaysOnTop -Resize +Caption +SysMenu +Border
   Gui, -0x30000 
   Gui, Intro:Margin, 10,10
   Gui, Intro:Color, C4CBCC, 000000
@@ -62,14 +56,15 @@ If ($Init || (strlen($WhoAmI)<2))
 About:
 if(!$Init)
 {
-  Gui, About:New, +HwndWinID +AlwaysOnTop -Resize  +Caption +SysMenu +Border
+  Gui, About:New, +AlwaysOnTop -Resize  +Caption +SysMenu +Border
   Gui, -0x30000 
   Gui, About:Font, bold
   Gui, About:Margin, 20,20
   Gui, About:Color, C4CBCC, 000000
-  Gui, About:Add, Text,Left x+95 y20 -border, MW5Mercs Mechlab Maid (32-bit) v1.0`n
+  Gui, About:Add, Text,Left x+95 y20 -border, MW5Mercs Mechlab Maid (32-bit) v1.0d`n
   Gui, About:Font, normal
-  Gui, About:Add, Text,Left xp y+1  -border, Written by: NasumiRayne / Chozo4 `n`nGitHub Page:
+  Gui, About:Add, Text,Left xp y+1  -border, Written by: NasumiRayne / Chozo4
+  Gui, About:Add, Text,Left xp y+1  -border, Translated by: NasumiRayne / Chozo4 `n`nGitHub Page:
   Gui, About:Add, Link,xp y+1,<a href="https://github.com/Chozo4">https://github.com/Chozo4</a>
   Gui, About:Add, Text,Left xp y+1  -border, `nContact me on discord:
   Gui, About:Add, Link,xp y+1,<a href="https://discordapp.com/users/280854706073501696">NasumiRayne#1510</a>
@@ -77,11 +72,11 @@ if(!$Init)
   Gui, About:Add, Link,xp y+1,<a href="https://twitch.tv/Chozo4">https://twitch.tv/Chozo4</a>
   Gui, About:Add, Text,Center W80 H80 X20 Y35 +border, SENPAI`nNOTICED`nME!
   Gui, About:Add, Picture , wp yp xp hp, % $ExtractDir "about.jpg"
-  Gui, About:Add, Button, xp y+30 H30 wp gAboutClose -hidden +default, OK
+  Gui, About:Add, Button, xp y+40 H30 wp gAboutClose -hidden +default, OK
 }
 
 Main:
-Gui, Main:New, +HwndWinID -AlwaysOnTop -Resize +Caption -ToolWindow +Border +OwnDialogs
+Gui, Main:New, +LastFound +HwndWinID -AlwaysOnTop -Resize +Caption -ToolWindow +Border +OwnDialogs
 Gui, Main:Margin, 0,0
 Gui, Main:Color, C4CBCC, F0F0F0
 Gui, Main:Font,, Verdana
@@ -90,7 +85,7 @@ Gui, Main:Add, Button,x+10 yp gExportFunc,Export Variant
 Gui, Main:Add, Button,x+10 yp gDeleteFunc,Delete Variant
 Gui, Main:Add, Edit, x+10 yp r1 vLOPath w380 -VScroll -HScroll +Border +ReadOnly, % $LoadoutPath
 Gui, Main:Add, Button, x+10 yp gLOPath, ...
-Gui, Main:Add, listview,c101010 Checked Count100 -Multi AltSubmit grid w350 h500 x0 y40 vLoadoutList gUpdateReadout, #|Base|Variant Name
+Gui, Main:Add, listview,c101010 Checked Count1000 -Multi AltSubmit grid w350 h500 x0 y40 vLoadoutList gUpdateReadout, #|Base|Variant Name
 gui, Main:font, c0x000000 s9, Roboto Mono Regular
 Gui, Main:Add, Edit, w400 hp+0 x+0 yp -Wrap +ReadOnly vReadout
 Gui, Main:Add, StatusBar,center,
@@ -225,7 +220,7 @@ if ($init)
 MainGuiClose:
 if !$ModCount
 {
-  DllCall( "GDI32.DLL\RemoveFontResourceEx",Str,$ExtractDir "RobotoMono-Regular.TTF",UInt,(FR_PRIVATE:=0x10),Int,0)
+  DllCall( "GDI32.DLL\RemoveFontResourceEx",Str,".\Localization\" $Locale "\Font.TTF",UInt,(FR_PRIVATE:=0x10),Int,0)
   FileRemoveDir, % $ExtractDir, 1
   ExitApp
 }
@@ -237,7 +232,7 @@ IfMsgBox Yes
 else IfMsgBox Cancel
   return
   
-DllCall( "GDI32.DLL\RemoveFontResourceEx",Str,$ExtractDir "RobotoMono-Regular.TTF",UInt,(FR_PRIVATE:=0x10),Int,0)
+DllCall( "GDI32.DLL\RemoveFontResourceEx",Str,".\Localization\" $Locale "\Font.TTF",UInt,(FR_PRIVATE:=0x10),Int,0)
   FileRemoveDir, % $ExtractDir, 1
 ExitApp
 return
@@ -254,21 +249,22 @@ return
 
 ConsultTranslationTable($Find)  ;For comparing component against translation table of known item IDs
 {
-  Global $ExtractDir
+  Global $Locale
   Static $Trans := []
   
   if !NumGet(&$Trans + 4*A_PtrSize)
-    Loop, read, % $ExtractDir "TT_Equipment.cfg"
+    Loop, read, % ".\Localization\" $Locale "\TranslationTable.cfg"
       if inStr(A_LoopReadLine,":")
         $Out := StrSplit(A_LoopReadLine,":"), $Trans[$Out[1]] := $Out[2]
 
-  if substr($Find,1,3) = "std" ;screw adding every engine to the translation table
+  if ((substr($Find,1,3) = "std") || (substr($Find,1,3) = "LFE")) ;screw adding every engine to the translation table
     return substr($Find,4)
     
-  return $Trans[$Find]?$Trans[$Find]:$Find
+  ;return $Trans[$Find]?$Trans[$Find]:$Find
+  return $Trans.hasKey($Find)?$Trans[$Find]:"*" $Find
 }
 
-GetComponentBySlot($Data,$Slot,$Fallback="")  ;extend to check for multiples, including location, and return array
+GetComponentBySlot($Data,$Slot,$Fallback="")  ;TODO: extend to check for multiples, including location, and return array
 {
   RegExMatch($Data,"is):" $Slot """.*?Asset:(.*?)""",$out)
   return $out1?ConsultTranslationTable($out1):$Fallback
@@ -281,6 +277,21 @@ StrPad($S,$ToLen,$PadWith=" ",$PadRight=0)
     
   return $PadRight?substr($S,1,$ToLen):substr($S,1-$ToLen)
 }
+
+TabulateAmmo($Ammo)
+{
+  if (inStr($Ammo,"huge")   || inStr($Ammo,"3.0"))
+    return 3.00
+  if (inStr($Ammo,"double") || inStr($Ammo,"2.0"))
+    return 2.00
+  if (inStr($Ammo,"half")   || inStr($Ammo,"0.5"))
+    return 0.50
+  if (inStr($Ammo,"quart")  || inStr($Ammo,"0.25"))
+    return 0.25
+  
+  return 1.00
+}
+
 
 PopulateDetails($Selected)
 {
@@ -318,23 +329,30 @@ PopulateDetails($Selected)
   ;$text .= " H: " $Armor.Head "     CT: " $Armor.CenterTorso "  LA: " $Armor.LeftArm "  RA: " $Armor.RightArm "`n"
   ;$text .= "LT: " $Armor.LeftTorso " RT: " $Armor.RightTorso "  LL: " $Armor.LeftLeg "  RL: " $Armor.RightLeg "`n"
   
-  $text .= "`n`n Ordnance`n" strpad("",34,chr(9472),1)
-  $LastPos := 0,  $Tmp := {0:0}, $Armaments := {} ;Get Weapons List
+  $text .= "`n`n Ordnance`n" strpad("",29,chr(9472),1) "  " strpad("",29,chr(9472),1) 
+  $LastPos := 0,  $Tmp := {0:0}, $Armaments := {}, $Index := 0 ;Get Weapons List
   While ($LastPos := RegExMatch($Selected[0], "isO)WeaponDataAsset:(.*?)""", $Tmp, $LastPos += StrLen($Tmp[0])))
-    $Armaments[$Tmp[1]] := $Armaments[$Tmp[1]]?$Armaments[$Tmp[1]]+1:1
+  {
+    ;$Tmp[1]:= InStr($Tmp[1],"_lvl")?substr($Tmp[1],1,InStr($Tmp[1],"_lvl")):$Tmp[1]
+    $TmpVal := substr($Tmp[1],1,InStr($Tmp[1],"_Lvl")?InStr($Tmp[1],"_Lvl")-1:StrLen($Tmp[1])) ;Strip Tiers
+    $Armaments[$TmpVal] := $Armaments[$TmpVal]?$Armaments[$TmpVal]+1:1
+  }  
   For $k, $v in $Armaments
-      $text .= !InStr($k, "YAML_")?("`n" $v "x " ConsultTranslationTable(RegExReplace($k,"i)_lvl[0-9]",""))):""
- 
-   $text .= "`n`n Munitions`n" strpad("",34,chr(9472),1)
-  $LastPos := 0,  $Tmp := {0:0}, $Ammunition := {}
+    $text .= ($t:=ConsultTranslationTable($k))?((Mod($Index++,2)?"  ":"`n") strpad($v "x " $t,25," ",1)):""
+
+ ;52 width (26 each) 
+   $text .= "`n`n Munitions`n" strpad("",29,chr(9472),1) "  " strpad("",29,chr(9472),1)
+  $LastPos := 0,  $Tmp := {0:0}, $Ammunition := {}, $Index := 0
   While ($LastPos := RegExMatch($Selected[0], "isO)MWAmmoDataAsset:(.*?)""", $Tmp, $LastPos += StrLen($Tmp[0])))
     $Ammunition[$Tmp[1]] := $Ammunition[$Tmp[1]]?$Ammunition[$Tmp[1]]+1:1
   For $k, $v in $Ammunition
-      $text .= !InStr($k, "YAML_")?("`n" $v "x " ConsultTranslationTable($k)):""
-
-    
+      $text .= ($t:=ConsultTranslationTable($k))?"`n" substr($v,1,instr($v,".")+2) "X " $t:""
+      
+   $text .= "`n`n Traits`n" strpad("",29,chr(9472),1) "  " strpad("",29,chr(9472),1)
+  $LastPos := 0,  $Tmp := {0:0}, $Ammunition := {}, $Index := 0
+  While ($LastPos := RegExMatch($Selected[3], "isO)MWMechTraitDataAsset:(.*?)""", $Tmp, $LastPos += StrLen($Tmp[0])))
+      $text .= ($t:=ConsultTranslationTable($Tmp[1]))?((Mod($Index++,2)?"  ":"`n") strpad($t,25," ",1)):""
  
-  
   GuiControl,,Readout, % $text
 }
 
@@ -467,7 +485,7 @@ else If (A_GuiEvent = "I" && ($SelRow := A_EventInfo?A_EventInfo:LV_GetNext(0)) 
 return
 
 LoadoutList:
-
+  StartTime := A_TickCount
   $isValid := inStr(($F := FileOpen($LoadoutPath, "r")).Read(16), "Loadouts"),$F.Close()
   if (!$isValid)
   {
@@ -478,19 +496,29 @@ LoadoutList:
   if (!FileExist($LoadoutPath ".bak"))   ;keep firstrun backup
     FileCopy, % $LoadoutPath, % $LoadoutPath ".bak"
     
+  
   tooltip, Compiling List...
   $ModCount := 0
   
   FileRead, Loadouts, % $LoadoutPath
   $LastPos := 1, $LO := {0:0},  $Row := {}
-  While ($LastPos := RegExMatch(Loadouts, "isO)(""mechDataAssetId"".*?MWMechDataAsset:)(.*?)"".*?customName"": ""(.*?)"".*?("".*?InstalledTraits.*?])", $LO, $LastPos += StrLen($LO[0])))  
-    $Row[A_Index] := {0:"{`r`n " $LO[0] "`r`n}", 1:RegExReplace(StrReplace($LO[2], "_MDA", ""), "(_.*)", ""), 2:$LO[3]}
-    
+   While ($LastPos := RegExMatch(Loadouts, "isOS)""mechDataAssetId"".*?MWMechDataAsset:(.*?)"".*?customName"": ""(.*?)"".*?""installedTraits""(.*?)]", $LO, $LastPos += StrLen($LO[0])))  
+   {
+   ;msgbox % $LO[0] [a-zA-Z0-9]{1,3}
+   ;$Row[A_Index] := {0:"{`r`n " $LO[0] "`r`n}", 1:RegExReplace(StrReplace($LO[1], "_MDA", ""), "(_.*)", ""), 2:$LO[2],3:$LO[3]}
+   RegExMatch($LO[1], "sO)([A-Z0-9]+[-].+?)_", $F)
+   
+   $Row[A_Index] := {0:"{`r`n " $LO[0] "`r`n}", 1:$F[1]?$F[1]:StrReplace($LO[1], "_MDA", ""), 2:$LO[2],3:$LO[3]}
+  }
   SB_SetText(NumGet(&$Row + 4*A_PtrSize) . " variants loaded and ready for manipulation.", 1)
  
 
- GuiControl, -Redraw, LoadoutList
+
  tooltip Populating...
+ GuiControl, disable, LoadoutList
+ sleep 1
+ SendMessage, 0xB, 0, 0,, ahk_id %WinID%
+ GuiControl, -Redraw, LoadoutList
  LV_Delete()
  for $k, $v in $Row
    lv_add(,$k,$v[1],$v[2])
@@ -500,11 +528,17 @@ LoadoutList:
  ;LV_ModifyCol(1,"60")
  LV_ModifyCol(2,"Sort")
  LV_ModifyCol(3,"AutoHDR")
+ SendMessage, 0xB, 1, 0,, ahk_id %WinID%
+ GuiControl, enable, LoadoutList
  GuiControl, +Redraw, LoadoutList
-
- Tooltip
+ 
+  tooltip % "Time to build: " A_TickCount - StartTime "ms"
+ SetTimer, ClearTooltip, 2000
 return
 
+ClearTooltip:
+  tooltip
+return
 
 
 
